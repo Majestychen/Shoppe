@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="utf-8">
+		<title>table模块快速使用</title>
+		<link rel="stylesheet" href="./plugins/layui/css/layui.css" media="all">
+	</head>
+
+	<body>
+
+		<table class="layui-table" lay-data="{height:470, url:'/UserServlet?action=getPage', page:true, id:'idTest'}" lay-filter="demo">
+			<thead>
+			<tr>
+				<th lay-data="{type:'checkbox', fixed: 'left'}"></th>
+				<th lay-data="{field:'uId', width:80, sort: true, fixed: true}">编号</th>
+				<th lay-data="{field:'userName', width:200,templet:'#type'}">用户名</th>
+				<th lay-data="{field:'pwd', width:150}">密码</th>
+				<th lay-data="{field:'phone', width:200, sort: true}">联系电话</th>
+				<th lay-data="{field:'idCard', width:250}">身份证</th>
+				<th lay-data="{field:'email', width:228, sort: true}">邮箱</th>
+			</tr>
+			</thead>
+		</table>
+
+		<script src="./plugins/layui/layui.js"></script>
+		<script src="/js/jquery-3.3.1.min.js"></script>
+		<script>
+            layui.use('table', function(){
+                var table = layui.table;
+                //监听表格复选框选择
+                table.on('checkbox(demo)', function(obj){
+                    console.log(obj)
+                });
+                //监听工具条
+                table.on('tool(demo)', function(obj){
+                    var data = obj.data;
+                    if(obj.event === 'del'){
+                        layer.confirm('真的删除行么', function(index){
+                            $.ajax({
+								url:"/ProductServlet?action=del",
+								type:"post",
+								data:{pId:data.pId},
+								success:function(data){
+                                    obj.del();
+                                    layer.close(index);
+                                    layer.alert(data.msg)
+								}
+							})
+                        });
+                    } else if(obj.event === 'edit'){
+                        layer.alert('编辑行：<br>'+ JSON.stringify(data))
+                    }
+                });
+
+                var $ = layui.$, active = {
+                    getCheckData: function(){ //获取选中数据
+                        var checkStatus = table.checkStatus('idTest')
+                            ,data = checkStatus.data;
+                        layer.alert(JSON.stringify(data));
+                    }
+                    ,getCheckLength: function(){ //获取选中数目
+                        var checkStatus = table.checkStatus('idTest')
+                            ,data = checkStatus.data;
+                        layer.msg('选中了：'+ data.length + ' 个');
+                    }
+                    ,isAll: function(){ //验证是否全选
+                        var checkStatus = table.checkStatus('idTest');
+                        layer.msg(checkStatus.isAll ? '全选': '未全选')
+                    }
+                };
+
+                $('.demoTable .layui-btn').on('click', function(){
+                    var type = $(this).data('type');
+                    active[type] ? active[type].call(this) : '';
+                });
+            });
+
+		</script>
+	</body>
+</html>

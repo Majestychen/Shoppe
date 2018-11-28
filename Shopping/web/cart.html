@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>购物车</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="css/ext.css"/>
+</head>
+<body>
+<div class="container">
+    <div class="row box" style="margin-bottom: 2rem; margin-top: 2rem;">
+        <div class="col-md-10 column">
+            <h1 style="color: red; margin: auto;">我的购物车</h1>
+        </div>
+        <div class="col-md-2 column" align="right">
+            <a href="index.html">返回首页</a>
+        </div>
+    </div>
+    <div class="row well well-sm">
+        <div class="col-md-2 column" align="left">
+            <input type="checkbox" id="all"/>&nbsp;全选
+        </div>
+        <div class="col-md-3 column" align="left">商品信息</div>
+        <div class="col-md-2 column" align="left">单价</div>
+        <div class="col-md-2 column" align="left">数量</div>
+        <div class="col-md-2 column" align="left">金额</div>
+        <div class="col-md-1 column" align="left">操作</div>
+    </div>
+    <!-- 购物车列表 -->
+    <div id="productList">
+
+    </div>
+    <!-- 结算 -->
+    <div class="row well well-sm">
+        <div class="col-md-12 column" align="right" style="margin-top: 1rem;">
+            <p style="color: red; font-size: large; font-weight: bold;" id="sumMoney">合计：¥ 0.00</p>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12 column" align="right">
+            <input type="button" class="btn btn-primary btn-lg" value="结算" onclick="order()"/>
+        </div>
+    </div>
+</div>
+</body>
+<script src="js/operation.js"></script>
+<script src="js/jquery-3.3.1.min.js"></script>
+<script>
+    //渲染购物车商品
+    var list = function () {
+        $.ajax({
+            url: "/Buy_CatServlet",
+            type: "get",
+            success: function (data) {
+                $.each(data, function (index, obj) {
+                    var str1 = "<div class='row well well-sm box'><div class='col-md-2 column' align='left'><input type='checkbox' class='check' value='" + accMul(obj.buy_num, obj.price) + "' id='" + obj.cId + "'/>";
+                    var str2 = "<img alt='120x120' width='120rem' height='120rem' src='/imgs/" + obj.photo + "'/></div><div class='col-md-3 column' align='left'><p>" + obj.detailed + "</p>";
+                    var str3 = "</div><div class='col-md-2 column' align='left'><p style='font-size: large;' id='pPrice'>¥ " + obj.price + "</p></div>";
+                    var str4 = "<div class='col-md-2 column' align='left'><input type='number' name='buyNum' min='1' data-cId='" + obj.cId + "' onchange='update(this)' value='" + obj.buy_num + "'/></div><div class='col-md-2 column' align='left'><p style='color: red; font-size: large;' class='money' id='money'>¥ " + accMul(obj.buy_num, obj.price) + "</p></div>";
+                    var str5 = "<div class='col-md-1 column' align='left'><input type='button' class='btn btn-danger' onclick='del(this)' data-id='" + obj.cId + "' name='del' value='删除'/></div></div>";
+                    var str = str1 + str2 + str3 + str4 + str5;
+                    $("#productList").append(str);
+                })
+            }
+        })
+    }
+    list();
+
+    //删除购物车商品
+    function del(x) {
+        var cId = $(x).attr("data-id");
+        if(confirm("是否确认删除？"))
+        $.ajax({
+            url: "Buy_CatServlet?action=del",
+            type: "post",
+            data: {cId: cId},
+            success: function (data) {
+                alert(data.msg)
+                $(x).parent().parent().remove()
+                sumMoneys();
+            }
+        })
+    }
+
+    //修改商品购买事件
+    function update(e) {
+        var count = $(e).val()
+        var priceNode = $(e).parent().prev().find("#pPrice").text();
+        var checkbox = $(e).parent().prev().prev().prev().find(".check");
+        var price = priceNode.substring(2, priceNode.length);
+        var cId = $(e).attr("data-cId");
+        var money = $(e).parent().next().find("#money")
+        $.ajax({
+            url: "Buy_CatServlet?action=updateBuyNum",
+            type: "post",
+            data: {cId: cId, buy_num: count},
+            success: function (data) {
+                //修改单个商品的总价格
+                money.text("¥ " + accMul(count, price))
+                //修改复选框的价格
+                checkbox.val(accMul(count, price))
+                //修改多个商品的总价格
+                sumMoneys()
+            }
+        })
+    }
+
+    //计算多个商品总价钱
+    var sumMoneys = function () {
+        var checked = [];
+        var list = $("#productList :checkbox:checked");
+        list.each(function () {
+            checked.push($(this).val());
+        });
+        var sum = 0;
+        for (var i = 0; i < checked.length; i++) {
+            sum = accAdd(sum, checked[i])
+        }
+        $("#sumMoney").text("合计：¥ " + sum + ".00")
+    }
+
+    //获取多个商品总价
+    $("#productList").on("click", ".check", function () {
+        sumMoneys()
+    })
+
+    //商品结算
+    function order(){
+        var checked = [];
+        var sumPrice = [];
+        var price = $("#sumMoney").text();
+        var list = $("#productList :checkbox:checked");
+        list.each(function () {
+            checked.push($(this).attr("id"));
+            sumPrice.push($(this).val());
+        });
+        if(checked.length > 0){
+            $.ajaxSettings.traditional=true;
+            //添加到订单表
+            $.ajax({
+                url:"OrderServlet?action=insert",
+                type:"post",
+                data:{cIds:checked,sumPrice:sumPrice},
+                success:function(data){
+                    if(data.msg == "false"){
+                        alert("结算出错，请重试")
+                    }else {
+                        location.href = 'order.html';
+                        //修改商品状态
+                        $.ajax({
+                            url:"Buy_CatServlet?action=pinList",
+                            type:"post",
+                            data:{cIds:checked},
+                            success:function(data){
+                                if(data.msg == "false"){
+                                    alert("结算出错，请重试")
+                                }
+                            }
+                        })
+                    }
+                }
+            })
+
+        }else{
+            alert("请选择您需要购买的商品")
+        }
+    }
+
+    //全选
+    $("#all").click(function all(){
+        if($("#all").prop("checked")){
+            $(".check").prop("checked","true")
+        }
+        else{
+            $(".check").removeAttr("checked")
+        }
+    })
+
+
+</script>
+</html>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>确认订单</title>
+    <link rel="stylesheet" href="css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="css/ext.css"/>
+</head>
+
+<body>
+<div class="container">
+    <div class="row box" style="margin-bottom: 2rem; margin-top: 2rem;">
+        <div class="col-md-10 column">
+            <h1 style="color: red; margin: auto;">确认订单</h1>
+        </div>
+        <div class="col-md-2 column" align="right">
+            <a href="index.html">返回首页</a>
+        </div>
+    </div>
+    <!-- 地址信息-->
+    <div class="row" style="margin-bottom: 2rem;">
+        <div class="col-md-12 column">
+            <ul class="nav navcolor nav-pills nav-stacked">
+                <li class="active" style="font-size: large;">
+                    <a href="#">配送地址</a>
+                </li>
+                <div id="address"></div>
+                <li>
+                    <input type="button" id="newaddr" class="btn btn-info btn-sm" value="使用新地址"/>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <!-- 订单信息 -->
+    <div class="row" style="margin-bottom: 2rem;">
+        <div class="col-md-12 column">
+            <ul class="nav navcolor nav-pills nav-stacked" id="order">
+                <li class="active" style="font-size: large;">
+                    <a href="#">订单信息</a>
+                </li>
+                <li>
+                    <div class="row">
+                        <div class="col-md-1 column" align="left"></div>
+                        <div class="col-md-3 column" align="left">商品信息</div>
+                        <div class="col-md-3 column" align="left">单价</div>
+                        <div class="col-md-2 column" align="left">数量</div>
+                        <div class="col-md-3 column" align="left">金额</div>
+                    </div>
+                </li>
+
+            </ul>
+        </div>
+    </div>
+    <!-- 结算 -->
+    <div class="row">
+        <div class="col-md-12 column" align="right" style="margin-top: 1rem;">
+            <p style="color: red; font-size: large; font-weight: bold;" id="sumPrice">实付款：¥ 0.00</p>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-12 column" align="right">
+            <input type="button" id="suborder" class="btn btn-primary btn-lg" value="提交订单"/>
+        </div>
+    </div>
+</div>
+<!-- 模式对话框 -->
+<div id="addrModal"></div>
+</body>
+<script src="js/jquery-3.3.1.min.js"></script>
+<script src="js/bootstrap.min.js"></script>
+<script src="js/operation.js"></script>
+<script>
+
+    //添加收货地址
+    $("#newaddr").on("click", function () {
+        $("#addrModal").load("newaddr.html", function () {
+            $("#newAddrModal").modal('show');
+            $("#newAddr").click(function () {
+                $.ajax({
+                    url: "/AddressServlet?action=insert",
+                    type: "post",
+                    data: {
+                        aName: $("#receiveUser").val(),
+                        aPhone: $("#receiveTell").val(),
+                        address: $("#receiveAddr").val()
+                    },
+                    success: function (data) {
+                        alert("添加成功")
+                        $("#newAddrModal").modal('hide');
+                        $("#address li").remove()
+                        list()
+                    }
+                })
+            })
+        });
+    });
+
+
+    //提交订单
+    $("#suborder").on("click", function () {
+        var aId = $("input[type=radio]:checked").attr("id")
+        $.ajax({
+            url: "/OrderServlet?action=update",
+            type: "post",
+            data:{aId:aId},
+            success: function (data) {
+                alert(data.msg)
+                $("#sumPrice").text("实付款：¥ 0.00")
+                $("#order .product").remove();
+            }
+        })
+    });
+    //遍历数据
+    var list = function () {
+        //遍历收货地址
+        $.ajax({
+            url: "/AddressServlet",
+            type: "get",
+            success: function (data) {
+                $.each(data, function (index, obj) {
+                    $("#address").append("<li><input type='radio' name='address' onclick='radio(this)' id='" + obj.aId + "'/>&nbsp; " + obj.address + "(" + obj.aName + ") " + obj.aPhone + "</li>")
+                })
+            }
+        })
+        $("input:radio:first").attr("checked", "checked");
+
+        //遍历订单列表
+        $.ajax({
+            url: "/OrderServlet",
+            type: "get",
+            success: function (data) {
+                $.each(data, function (index, obj) {
+                    var str1 = "<li class='product'><div class='row box'><div class='col-md-1 column' align='left'><img alt='60x60' style='margin: 1rem;' width='60rem' height='60rem' src='/imgs/" + obj.photo + "' />"
+                    var str2 = "</div><div class='col-md-3 column' align='left'><p>" + obj.detailed + "</p></div><div class='col-md-3 column' align='left'><p style='font-size: large;'>¥ " + obj.price + "</p></div>"
+                    var str3 = "<div class='col-md-2 column' align='left'><p style='font-size: large;'>" + obj.buy_num + "</p></div><div class='col-md-3 column' align='left'>"
+                    var str4 = "<p style='color: red; font-size: large;'>¥ " + accMul(obj.buy_num, obj.price) + "</p></div></div></li>"
+                    var html = str1 + str2 + str3 + str4
+                    $("#order").append(html)
+                })
+            }
+        })
+
+        //计算订单总价值
+        $.ajax({
+            url: "/OrderServlet?action=getsumPrice",
+            type: "post",
+            success: function (data) {
+                $("#sumPrice").text("实付款：¥ " + data.sumMoney + "")
+            }
+        })
+    }
+    list();
+
+</script>
+</html>
